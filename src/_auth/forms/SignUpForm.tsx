@@ -8,16 +8,30 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useForm } from "react-hook-form";
 import { SignUpValidation } from "@/lib/validation/Index";
 import { Loader } from "lucide-react";
 import { Link } from "react-router-dom";
-import { createUserAccount } from "@/lib/appwrite/api";
+import {
+  useCreateUserAccount,
+  useSignInAccount,
+} from "@/lib/react-query/queriesAndMutations";
 
 const SignUpForm = () => {
-  const isLoading = true;
+  const { toast } = useToast();
+
+  const {
+    mutateAsync: createUserAccount,
+    isLoading: isCreatingUser,
+  } = useCreateUserAccount();
+
+  const {
+    mutateAsync: signInAccount,
+    isLoading: isSignInAccount,
+  } = useSignInAccount();
 
   // 1. Определите свою форму.
   const form = useForm<z.infer<typeof SignUpValidation>>({
@@ -34,11 +48,24 @@ const SignUpForm = () => {
   async function onSubmit(
     values: z.infer<typeof SignUpValidation>,
   ) {
-    // Сделайте что-нибудь со значениями формы.
-    // ✅ Это будет типобезопасно и проверено.
     const newUser = await createUserAccount(values);
     if (!newUser) {
-      return;
+      return toast({
+        title:
+          "Не удалось зарегистрироваться. Пожалуйста, попробуйте снова",
+      });
+
+      const session = await signInAccount({
+        email: values.email,
+        password: values.password,
+      });
+
+      if (!session) {
+        return toast({
+          title:
+            "Не удалось зарегистрироваться. Пожалуйста, попробуйте снова",
+        });
+      }
     }
   }
 
@@ -133,7 +160,7 @@ const SignUpForm = () => {
             type="submit"
             className="shad-button_primary"
           >
-            {isLoading ? (
+            {isCreatingUser ? (
               <div className="flex-center gap-2">
                 <Loader /> Загрузка...
               </div>
